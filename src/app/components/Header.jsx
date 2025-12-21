@@ -4,6 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/context/AuthProvider'; // Ensure this path is correct
 import { useRouter, usePathname } from 'next/navigation';
+import { X } from 'lucide-react';
 
 export default function Header() {
   const { currentUser, logout } = useAuth();
