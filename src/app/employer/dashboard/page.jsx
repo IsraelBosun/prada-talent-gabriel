@@ -47,12 +47,6 @@ export default function EmployerDashboard() {
     <div className="min-h-screen bg-[#F8FAFC] flex">
       {/* Sidebar - High Contrast Professional */}
       <aside className="w-72 bg-slate-900 hidden lg:flex flex-col sticky top-0 h-screen text-slate-300">
-        <div className="p-8">
-          <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 bg-blue-500 rounded-xl flex items-center justify-center text-white font-black text-xl shadow-lg shadow-blue-500/20">P</div>
-            <span className="text-white font-bold text-xl tracking-tight">Panda Talent</span>
-          </div>
-        </div>
 
         <nav className="flex-1 px-4 space-y-2 mt-4">
           <NavItem icon={<LayoutDashboard size={20} />} label="Dashboard" active />

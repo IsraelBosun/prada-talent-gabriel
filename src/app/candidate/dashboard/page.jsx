@@ -76,10 +76,6 @@ export default function CandidateDashboard() {
     <div className="min-h-screen bg-[#F8FAFC] flex">
       {/* --- SLEEK SIDEBAR --- */}
       <aside className="w-64 bg-white border-r border-gray-100 hidden lg:flex flex-col p-6 sticky top-0 h-screen">
-        <div className="flex items-center space-x-2 mb-10 px-2">
-          <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center text-white font-bold">P</div>
-          <span className="font-bold text-xl tracking-tight text-gray-900">Panda Talent</span>
-        </div>
         
         <nav className="space-y-1 flex-1">
           <NavItem icon={LayoutDashboard} label="Dashboard" active />

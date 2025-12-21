@@ -15,7 +15,7 @@ export default function EmployerOnboarding() {
   const router = useRouter();
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
-  const [entityType, setEntityType] = useState('company'); // 'company' or 'individual'
+  const [entityType, setEntityType] = useState('company'); 
 
   // --- Form State ---
   const [formData, setFormData] = useState({
@@ -47,10 +47,11 @@ export default function EmployerOnboarding() {
 
   const handleChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
 
-  // --- Tag Logic ---
+  // --- FIX: Mobile-Optimized Tag Logic ---
   const handleStackKeyDown = (e) => {
     if (e.key === 'Enter') {
-      e.preventDefault();
+      e.preventDefault(); // Lock mobile keyboard to this field
+      e.stopPropagation();
       const val = stackInput.trim().toLowerCase();
       if (val && !stack.includes(val)) {
         setStack([...stack, val]);
@@ -64,6 +65,7 @@ export default function EmployerOnboarding() {
   // --- Final Submission ---
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (step < 3) return;
     setLoading(true);
 
     try {
@@ -99,13 +101,9 @@ export default function EmployerOnboarding() {
 
   return (
     <div className="min-h-screen bg-white flex flex-col md:flex-row">
-      {/* Sidebar Progress */}
-      <div className="w-full md:w-80 bg-slate-900 border-r border-slate-800 p-8 flex flex-col justify-between md:h-screen md:sticky md:top-0 text-white">
+      {/* Sidebar - Logo Removed for Global Header Consistency */}
+      <div className="w-full md:w-80 bg-slate-900 border-r border-slate-800 p-8 flex flex-col justify-between md:h-screen md:sticky md:top-20 text-white">
         <div>
-          <div className="flex items-center space-x-2 mb-12">
-            <div className="w-8 h-8 bg-blue-500 rounded-lg flex items-center justify-center text-white font-bold">P</div>
-            <span className="font-bold tracking-tight text-xl">Panda Talent</span>
-          </div>
           <nav className="flex md:flex-col justify-between md:space-y-10">
             {steps.map((s) => (
               <div key={s.id} className="flex items-center">
@@ -193,15 +191,20 @@ export default function EmployerOnboarding() {
               <div className="space-y-6">
                 <div className="space-y-2">
                   <label className="text-xs font-bold text-slate-400 uppercase tracking-widest ml-1">Core Tech Stack (Press Enter)</label>
-                  <div className="w-full p-4 rounded-2xl bg-slate-50 min-h-[80px] flex flex-wrap gap-3 items-center border-2 border-transparent focus-within:ring-2 focus-within:ring-blue-500 transition-all">
+                  <div className="w-full p-4 rounded-2xl bg-slate-50 min-h-[80px] flex flex-wrap gap-3 items-center focus-within:ring-2 focus-within:ring-blue-500 transition-all">
                     {stack.map(tag => (
                       <span key={tag} className="bg-white px-4 py-2 rounded-xl text-sm font-bold text-slate-700 flex items-center shadow-sm border border-slate-100">
                         {tag} <X size={14} className="ml-2 cursor-pointer hover:text-red-500" onClick={() => removeStack(tag)} />
                       </span>
                     ))}
-                    <input value={stackInput} onChange={(e) => setStackInput(e.target.value)} onKeyDown={handleStackKeyDown}
+                    <input 
+                      value={stackInput} 
+                      onChange={(e) => setStackInput(e.target.value)} 
+                      onKeyDown={handleStackKeyDown}
+                      enterKeyHint="done"
                       placeholder={stack.length === 0 ? "e.g. Next.js, FastAPI, AWS" : "Add more..."}
-                      className="bg-transparent border-none focus:ring-0 outline-none flex-1 min-w-[150px] text-sm font-medium" />
+                      className="bg-transparent border-none focus:ring-0 outline-none flex-1 min-w-[150px] text-sm font-medium" 
+                    />
                   </div>
                 </div>
                 <div className="space-y-2">
@@ -249,15 +252,15 @@ export default function EmployerOnboarding() {
             ) : <div />}
 
             <div className="flex items-center space-x-6">
-              <span className="text-xs font-bold text-slate-300 tracking-widest uppercase">Step {step} / 3</span>
+              <span className="text-xs font-bold text-slate-300 tracking-widest uppercase text-center">Step {step} / 3</span>
               {step < 3 ? (
                 <button type="button" onClick={nextStep}
-                  className="bg-slate-900 text-white px-10 py-4 rounded-2xl font-bold hover:bg-slate-800 transition-all flex items-center shadow-2xl shadow-slate-200">
+                  className="bg-slate-900 text-white px-10 py-4 rounded-2xl font-bold hover:bg-slate-800 transition-all flex items-center shadow-2xl shadow-slate-200 active:scale-95">
                   Continue <ChevronRight size={18} className="ml-2" />
                 </button>
               ) : (
                 <button type="submit" disabled={loading}
-                  className="bg-blue-600 text-white px-12 py-4 rounded-2xl font-bold hover:bg-blue-700 transition-all shadow-2xl shadow-blue-200 flex items-center disabled:opacity-50">
+                  className="bg-blue-600 text-white px-12 py-4 rounded-2xl font-bold hover:bg-blue-700 transition-all shadow-2xl shadow-blue-200 flex items-center disabled:opacity-50 active:scale-95">
                   {loading ? 'Submitting...' : 'Complete Profile'} <CheckCircle2 size={18} className="ml-2" />
                 </button>
               )}
