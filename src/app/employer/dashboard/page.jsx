@@ -2,12 +2,12 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/context/AuthProvider';
 import { db } from '../../../../config/firebase-client';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, collection, query, where, getDocs, addDoc, serverTimestamp } from 'firebase/firestore';
 import Link from 'next/link';
 import { 
     LayoutDashboard, Search, Briefcase, Settings, 
     LogOut, Plus, Users, Sparkles, Building2, 
-    MapPin, Globe, ExternalLink, ArrowRight, X, Loader2, Github, Linkedin, Menu
+    MapPin, Globe, ExternalLink, ArrowRight, X, Loader2, Github, Linkedin, Menu, Calendar, DollarSign
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -18,8 +18,13 @@ export default function EmployerDashboard() {
   const [activeTab, setActiveTab] = useState('dashboard'); 
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
+  // Projects State
+  const [projects, setProjects] = useState([]);
+  const [isProjectModalOpen, setIsProjectModalOpen] = useState(false);
+  const [newProject, setNewProject] = useState({ title: '', description: '', budget: '', timeline: '' });
+
   // AI Search State
-  const [query, setQuery] = useState('');
+  const [queryText, setQueryText] = useState('');
   const [searchResults, setSearchResults] = useState([]);
   const [searchLoading, setSearchLoading] = useState(false);
 
@@ -28,33 +33,39 @@ export default function EmployerDashboard() {
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   useEffect(() => {
-    const fetchProfile = async () => {
+    const fetchData = async () => {
       if (currentUser?.uid) {
         try {
+          // Fetch Profile
           const docRef = doc(db, "employers", currentUser.uid);
           const docSnap = await getDoc(docRef);
-          if (docSnap.exists()) {
-            setProfile(docSnap.data());
-          }
+          if (docSnap.exists()) setProfile(docSnap.data());
+
+          // Fetch Projects
+          const projectsQuery = query(collection(db, "projects"), where("ownerId", "==", currentUser.uid));
+          const querySnapshot = await getDocs(projectsQuery);
+          setProjects(querySnapshot.docs.map(d => ({ id: d.id, ...d.data() })));
         } catch (error) {
-          console.error("Error fetching profile:", error);
+          console.error("Error fetching data:", error);
         } finally {
           setLoading(false);
         }
       }
     };
-    fetchProfile();
+    fetchData();
   }, [currentUser]);
 
-  const handleSearch = async (e) => {
-    e.preventDefault();
-    if (!query.trim()) return;
+  const handleSearch = async (e, manualQuery) => {
+    if (e) e.preventDefault();
+    const finalQuery = manualQuery || queryText;
+    if (!finalQuery.trim()) return;
+
     setSearchLoading(true);
     try {
       const response = await fetch('/api/search-talent', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query, limit: 6 }),
+        body: JSON.stringify({ query: finalQuery, limit: 6 }),
       });
       const data = await response.json();
       if (data.success) {
@@ -67,7 +78,33 @@ export default function EmployerDashboard() {
     }
   };
 
-  if (loading) return (
+  const handlePostProject = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      const docRef = await addDoc(collection(db, "projects"), {
+        ...newProject,
+        ownerId: currentUser.uid,
+        createdAt: serverTimestamp()
+      });
+      setProjects([{ id: docRef.id, ...newProject }, ...projects]);
+      setIsProjectModalOpen(false);
+      setNewProject({ title: '', description: '', budget: '', timeline: '' });
+      toast.success("Project posted successfully!");
+    } catch (error) {
+      toast.error("Failed to post project.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const initiateProjectSearch = (project) => {
+    setActiveTab('search');
+    setQueryText(project.description);
+    handleSearch(null, project.description);
+  };
+
+  if (loading && activeTab === 'dashboard') return (
     <div className="flex items-center justify-center h-screen bg-white">
       <Loader2 className="animate-spin text-blue-600" size={40} />
     </div>
@@ -77,29 +114,29 @@ export default function EmployerDashboard() {
     <div className="min-h-screen bg-[#F8FAFC] flex flex-col lg:flex-row relative">
       
       {/* --- MOBILE NAVIGATION --- */}
-      <div className="lg:hidden bg-white-900 px-6 py-4 sticky top-0 z-40 flex items-center justify-between text-white">
-
-        <button 
-          onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-          className="p-2 bg-slate-800 rounded-xl text-white"
-        >
+      <div className="lg:hidden bg-slate-900 px-6 py-4 sticky top-0 z-40 flex items-center justify-between text-white">
+        <div className="flex items-center space-x-2">
+            <div className="w-8 h-8 bg-blue-500 rounded-lg flex items-center justify-center font-black">P</div>
+            <span className="font-bold">Panda Talent</span>
+        </div>
+        <button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} className="p-2 bg-slate-800 rounded-xl">
           {isMobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
         </button>
       </div>
 
       {/* --- MOBILE MENU OVERLAY --- */}
       {isMobileMenuOpen && (
-        <div className="lg:hidden fixed inset-0 z-[100] bg-slate-900 text-white animate-in slide-in-from-top duration-300 p-8 flex flex-col">
+        <div className="lg:hidden fixed inset-0 z-[100] bg-slate-900 text-white p-8 flex flex-col animate-in slide-in-from-top duration-300">
             <div className="flex justify-between items-center mb-10">
                 <button onClick={() => setIsMobileMenuOpen(false)} className="p-2 bg-slate-800 rounded-full"><X size={24}/></button>
             </div>
             <nav className="space-y-4 flex-1">
                 <MobileNavItem icon={LayoutDashboard} label="Dashboard" active={activeTab === 'dashboard'} onClick={() => { setActiveTab('dashboard'); setIsMobileMenuOpen(false); }} />
                 <MobileNavItem icon={Search} label="AI Talent Search" active={activeTab === 'search'} onClick={() => { setActiveTab('search'); setIsMobileMenuOpen(false); }} />
-                <MobileNavItem icon={Briefcase} label="My Projects" onClick={() => setIsMobileMenuOpen(false)} />
+                <MobileNavItem icon={Briefcase} label="My Projects" active={activeTab === 'projects'} onClick={() => { setActiveTab('projects'); setIsMobileMenuOpen(false); }} />
                 <MobileNavItem icon={Users} label="Shortlist" onClick={() => setIsMobileMenuOpen(false)} />
             </nav>
-            <button onClick={logout} className="flex items-center space-x-4 p-5 text-red-400 font-bold bg-red-500/10 rounded-2xl mb-4">
+            <button onClick={logout} className="flex cursor-pointer items-center space-x-4 p-5 text-red-400 font-bold bg-red-500/10 rounded-2xl mb-4">
                 <LogOut size={20} />
                 <span>Sign Out</span>
             </button>
@@ -109,28 +146,21 @@ export default function EmployerDashboard() {
       {/* --- DESKTOP SIDEBAR --- */}
       <aside className="w-72 bg-slate-900 hidden lg:flex flex-col sticky top-0 h-screen text-slate-300 z-20">
         <div className="p-8">
-          <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 bg-blue-500 rounded-xl flex items-center justify-center text-white font-black text-xl shadow-lg shadow-blue-500/20">P</div>
-            <span className="text-white font-bold text-xl tracking-tight">Panda Talent</span>
-          </div>
+
         </div>
 
         <nav className="flex-1 px-4 space-y-2 mt-4">
-          <button onClick={() => setActiveTab('dashboard')} className={`w-full flex items-center space-x-3 px-4 py-3 rounded-xl transition-all text-sm font-semibold ${activeTab === 'dashboard' ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20' : 'hover:bg-slate-800'}`}>
-            <LayoutDashboard size={20} /> <span>Dashboard</span>
-          </button>
-          <button onClick={() => setActiveTab('search')} className={`w-full flex items-center space-x-3 px-4 py-3 rounded-xl transition-all text-sm font-semibold ${activeTab === 'search' ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20' : 'hover:bg-slate-800'}`}>
-            <Search size={20} /> <span>AI Talent Search</span>
-          </button>
-          <NavItem icon={<Briefcase size={20} />} label="My Projects" />
-          <NavItem icon={<Users size={20} />} label="Shortlist" />
+          <SidebarNavItem icon={LayoutDashboard} label="Dashboard" active={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} />
+          <SidebarNavItem icon={Search} label="AI Talent Search" active={activeTab === 'search'} onClick={() => setActiveTab('search')} />
+          <SidebarNavItem icon={Briefcase} label="My Projects" active={activeTab === 'projects'} onClick={() => setActiveTab('projects')} />
+          <SidebarNavItem icon={Users} label="Shortlist" onClick={() => {}} />
         </nav>
 
         <div className="p-4 border-t border-slate-800 space-y-2">
-          <Link href="/employer/onboarding" className="flex items-center space-x-3 px-4 py-3 rounded-xl hover:bg-slate-800 transition-all text-sm">
+          <Link href="/employer/onboarding" className="flex items-center space-x-3 px-4 py-3 rounded-xl hover:bg-slate-800 transition-all text-sm font-semibold">
             <Settings size={20} /> <span>Edit Profile</span>
           </Link>
-          <button onClick={logout} className="flex items-center space-x-3 px-4 py-3 rounded-xl hover:bg-red-500/10 text-red-400 transition-all text-sm w-full font-bold">
+          <button onClick={logout} className="cursor-pointer flex items-center space-x-3 px-4 py-3 rounded-xl hover:bg-red-500/10 text-red-400 transition-all text-sm w-full font-bold text-left">
             <LogOut size={20} /> <span>Sign Out</span>
           </button>
         </div>
@@ -138,24 +168,27 @@ export default function EmployerDashboard() {
 
       {/* --- MAIN CONTENT AREA --- */}
       <main className="flex-1 p-6 lg:p-12 overflow-y-auto z-10">
-        {activeTab === 'dashboard' ? (
+        
+        {/* TAB: DASHBOARD */}
+        {activeTab === 'dashboard' && (
           <div className="animate-in fade-in duration-500">
             <header className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-10">
               <div>
-                <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">
-                  {profile?.entityType === 'company' ? 'Organization' : 'Project'} Overview
-                </h1>
+                <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">Welcome back, {profile?.organizationName}</h1>
                 <p className="text-slate-500 font-medium mt-1">Total indexed talent amount: 2,400+</p>
               </div>
-              <button className="bg-blue-600 text-white px-6 py-3 rounded-xl font-bold hover:bg-blue-700 transition-all flex items-center shadow-lg shadow-blue-600/20">
-                <Plus size={20} className="mr-2" /> Post New Role
+              <button 
+                onClick={() => setIsProjectModalOpen(true)}
+                className="bg-blue-600 cursor-pointer text-white px-6 py-3 rounded-xl font-bold hover:bg-blue-700 transition-all flex items-center shadow-lg shadow-blue-600/20"
+              >
+                <Plus size={20} className="mr-2" /> Post New Project
               </button>
             </header>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
-              <StatCard label="AI Matches" value="24" sub="Highly relevant to your stack" icon={<Sparkles className="text-blue-600" />} />
-              <StatCard label="Active Requests" value="3" sub="Viewing 12 candidates" icon={<Briefcase className="text-purple-600" />} />
-              <StatCard label="Total Views" value="842" sub="+12% from last week" icon={<Users className="text-emerald-600" />} />
+            <div className="grid grid-cols-1 cursor-pointer md:grid-cols-3 gap-6 mb-10">
+              <StatCard label="Live Projects" value={projects.length} sub="Actively hiring" icon={<Briefcase className="text-blue-600" />} />
+              <StatCard label="AI Recommendations" value="12" sub="Ready for review" icon={<Sparkles className="text-purple-600" />} />
+              <StatCard label="Total Matches" value="842" sub="+12% from last week" icon={<Users className="text-emerald-600" />} />
             </div>
 
             <section className="bg-white rounded-[2.5rem] border border-slate-200 shadow-sm overflow-hidden mb-10">
@@ -173,23 +206,53 @@ export default function EmployerDashboard() {
                 </div>
                 <Link href="/employer/onboarding" className="text-sm font-bold text-blue-600 bg-blue-50 px-5 py-2.5 rounded-xl">Edit Profile</Link>
               </div>
-              <div className="p-8 grid grid-cols-1 lg:grid-cols-2 gap-10">
-                <div>
-                  <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-4">Mission</h3>
-                  <p className="text-slate-600 leading-relaxed font-medium">{profile?.mission || "No mission added."}</p>
-                </div>
-                <div>
-                  <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-4">Stack</h3>
-                  <div className="flex flex-wrap gap-2">
-                    {profile?.techStack?.map((tag, i) => (
-                      <span key={i} className="px-3 py-1.5 bg-slate-100 text-slate-700 rounded-lg text-[10px] font-bold uppercase tracking-widest border border-slate-200/50">{tag}</span>
-                    ))}
-                  </div>
-                </div>
-              </div>
             </section>
+
+            <div className="flex justify-between items-center mb-6">
+                <h2 className="text-xl font-bold text-slate-900">Recent Projects</h2>
+                <button onClick={() => setActiveTab('projects')} className="text-sm font-bold cursor-pointer text-blue-600">View all</button>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {projects.slice(0, 2).map(proj => (
+                    <ProjectCard key={proj.id} project={proj} onMatch={() => initiateProjectSearch(proj)} />
+                ))}
+            </div>
           </div>
-        ) : (
+        )}
+
+        {/* TAB: MY PROJECTS */}
+        {activeTab === 'projects' && (
+           <div className="animate-in slide-in-from-bottom-5 duration-500">
+             <header className="mb-10 flex justify-between items-end">
+                <div>
+                    <h2 className="text-4xl font-black text-slate-900 tracking-tight">My Projects</h2>
+                    <p className="text-slate-500 text-lg mt-2 font-medium">Manage your roles and trigger contextual AI matching.</p>
+                </div>
+                <button 
+                  onClick={() => setIsProjectModalOpen(true)}
+                  className="bg-slate-900 text-white px-6 py-3 rounded-xl font-bold flex items-center gap-2 shadow-xl shadow-slate-200"
+                >
+                    <Plus size={18}/> New Project
+                </button>
+             </header>
+
+             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {projects.length > 0 ? (
+                    projects.map(proj => (
+                        <ProjectCard key={proj.id} project={proj} onMatch={() => initiateProjectSearch(proj)} />
+                    ))
+                ) : (
+                    <div className="col-span-full py-20 text-center bg-white rounded-[2.5rem] border-2 border-dashed border-slate-200">
+                         <Briefcase className="mx-auto text-slate-200 mb-4" size={48} />
+                         <p className="text-slate-400 font-bold">No projects yet. Start by posting your first role.</p>
+                    </div>
+                )}
+             </div>
+           </div>
+        )}
+
+        {/* TAB: AI SEARCH */}
+        {activeTab === 'search' && (
           <div className="animate-in slide-in-from-right-10 duration-500">
             <header className="mb-10 text-slate-900">
               <h2 className="text-4xl font-black tracking-tight flex items-center gap-3">
@@ -202,11 +265,11 @@ export default function EmployerDashboard() {
               <div className="relative group">
                 <Search className="absolute left-6 top-6 text-slate-400 group-focus-within:text-blue-600 transition-colors" size={24} />
                 <input 
-                  type="text" value={query} onChange={(e) => setQuery(e.target.value)}
+                  type="text" value={queryText} onChange={(e) => setQueryText(e.target.value)}
                   placeholder="e.g. Someone to build a real-time crypto wallet dashboard with React and WebSockets"
-                  className="w-full pl-16 pr-4 pr-4 py-6 rounded-[2rem] bg-white shadow-xl shadow-blue-900/5 border-none focus:ring-2 focus:ring-blue-600 outline-none text-lg font-medium text-slate-900 md:pr-40"
+                  className="w-full pl-16 pr-4 py-6 rounded-[2rem] bg-white shadow-xl shadow-blue-900/5 border-none focus:ring-2 focus:ring-blue-600 outline-none text-lg font-medium text-slate-900 md:pr-40"
                 />
-                <button type="submit" disabled={searchLoading} className="mt-4 w-full md:mt-0 md:absolute md:right-3 md:top-3 md:bottom-3 md:w-auto bg-blue-600 text-white px-8 py-4 md:py-0 rounded-2xl font-bold hover:bg-blue-700 transition-all flex items-center justify-center gap-2">
+                <button type="submit" disabled={searchLoading} className="mt-4 w-full md:mt-0 md:absolute md:right-3 md:top-3 md:bottom-3 md:w-auto bg-blue-600 text-white px-8 py-4 md:py-0 rounded-2xl font-bold hover:bg-blue-700 transition-all flex items-center justify-center gap-2 shadow-lg shadow-blue-200">
                   {searchLoading ? <Loader2 className="animate-spin" size={20} /> : "Match Talent"}
                 </button>
               </div>
@@ -228,7 +291,7 @@ export default function EmployerDashboard() {
                   </div>
                   <button 
                     onClick={() => { setSelectedCandidateId(candidate.id); setIsModalOpen(true); }}
-                    className="w-full py-4 bg-slate-900 text-white font-bold rounded-2xl hover:bg-blue-600 transition-all flex items-center justify-center gap-2"
+                    className="w-full cursor-pointer py-4 bg-slate-900 text-white font-bold rounded-2xl hover:bg-blue-600 transition-all flex items-center justify-center gap-2"
                   >
                     Profile Details <ArrowRight size={18} />
                   </button>
@@ -245,7 +308,70 @@ export default function EmployerDashboard() {
         )}
       </main>
 
-      {/* --- CANDIDATE DETAIL SLIDE-OVER MODAL --- */}
+      {/* --- POST PROJECT MODAL --- */}
+      {isProjectModalOpen && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
+            <div className="bg-white w-full max-w-xl rounded-[2.5rem] p-8 md:p-12 shadow-2xl animate-in zoom-in-95 duration-200">
+                <div className="flex justify-between items-center mb-8">
+                    <h3 className="text-2xl font-black text-slate-900">Post New Project</h3>
+                    <button onClick={() => setIsProjectModalOpen(false)} className="p-2 hover:bg-slate-100 rounded-full transition-colors"><X/></button>
+                </div>
+                <form onSubmit={handlePostProject} className="space-y-4">
+                    <div className="space-y-1">
+                        <label className="text-xs font-black text-slate-400 uppercase tracking-widest ml-1">Title</label>
+                        <input 
+                            required 
+                            className="w-full bg-slate-50 border-none rounded-2xl px-6 py-4 outline-none focus:ring-2 focus:ring-blue-600 font-bold"
+                            placeholder="e.g. Senior Frontend Engineer (React)"
+                            onChange={(e) => setNewProject({...newProject, title: e.target.value})}
+                        />
+                    </div>
+                    <div className="space-y-1">
+                        <label className="text-xs font-black text-slate-400 uppercase tracking-widest ml-1">Description</label>
+                        <textarea 
+                            required 
+                            rows="4"
+                            className="w-full bg-slate-50 border-none rounded-2xl px-6 py-4 outline-none focus:ring-2 focus:ring-blue-600 font-medium resize-none"
+                            placeholder="What are you building? (The AI uses this to match talent)"
+                            onChange={(e) => setNewProject({...newProject, description: e.target.value})}
+                        />
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-1">
+                            <label className="text-xs font-black text-slate-400 uppercase tracking-widest ml-1">Budget</label>
+                            <div className="relative">
+                                <DollarSign size={16} className="absolute left-4 top-4 text-slate-400"/>
+                                <input 
+                                    className="w-full bg-slate-50 border-none rounded-2xl pl-10 pr-4 py-4 outline-none focus:ring-2 focus:ring-blue-600 font-bold"
+                                    placeholder="e.g. #5k - #10k"
+                                    onChange={(e) => setNewProject({...newProject, budget: e.target.value})}
+                                />
+                            </div>
+                        </div>
+                        <div className="space-y-1">
+                            <label className="text-xs font-black text-slate-400 uppercase tracking-widest ml-1">Timeline</label>
+                            <div className="relative">
+                                <Calendar size={16} className="absolute left-4 top-4 text-slate-400"/>
+                                <input 
+                                    className="w-full bg-slate-50 border-none rounded-2xl pl-10 pr-4 py-4 outline-none focus:ring-2 focus:ring-blue-600 font-bold"
+                                    placeholder="e.g. 3 months"
+                                    onChange={(e) => setNewProject({...newProject, timeline: e.target.value})}
+                                />
+                            </div>
+                        </div>
+                    </div>
+                    <button 
+                        type="submit"
+                        className="w-full bg-blue-600 text-white font-black py-5 rounded-2xl shadow-xl shadow-blue-100 hover:bg-blue-700 transition-all flex items-center justify-center gap-2 mt-6"
+                    >
+                        Publish Project <ArrowRight size={20}/>
+                    </button>
+                </form>
+            </div>
+        </div>
+      )}
+
+      {/* --- CANDIDATE DETAIL SLIDE-OVER --- */}
       <CandidateDetailModal 
         candidateId={selectedCandidateId} 
         isOpen={isModalOpen} 
@@ -255,7 +381,59 @@ export default function EmployerDashboard() {
   );
 }
 
-/* --- THE SLIDE-OVER COMPONENT --- */
+/* --- REUSABLE SUB-COMPONENTS --- */
+
+function SidebarNavItem({ icon: Icon, label, active, onClick }) {
+    return (
+        <button 
+            onClick={onClick} 
+            className={`w-full flex items-center space-x-3 px-4 py-3 rounded-xl transition-all text-sm font-semibold ${active ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20' : 'hover:bg-slate-800'}`}
+        >
+          <Icon size={20} /> <span>{label}</span>
+        </button>
+    );
+}
+
+function MobileNavItem({ icon: Icon, label, active = false, onClick }) {
+    return (
+      <div onClick={onClick} className={`flex items-center space-x-4 p-5 rounded-2xl cursor-pointer transition-all ${active ? 'bg-blue-500 text-white shadow-lg shadow-blue-500/20' : 'bg-slate-800 text-slate-400'}`}>
+        <Icon size={24} />
+        <span className="text-lg font-bold">{label}</span>
+      </div>
+    );
+}
+
+function ProjectCard({ project, onMatch }) {
+    return (
+        <div className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm hover:shadow-xl transition-all group">
+            <div className="flex justify-between items-start mb-6">
+                <div className="p-3 bg-blue-50 text-blue-600 rounded-2xl"><Briefcase size={24}/></div>
+                <div className="text-right">
+                    <span className="text-[10px] font-black uppercase tracking-widest text-emerald-600 bg-emerald-50 px-3 py-1 rounded-full">Active</span>
+                </div>
+            </div>
+            <h3 className="text-xl font-bold text-slate-900 mb-2">{project.title}</h3>
+            <p className="text-slate-500 text-sm line-clamp-2 font-medium mb-6 leading-relaxed">{project.description}</p>
+            
+            <div className="flex items-center gap-4 mb-8">
+                <div className="flex items-center gap-1.5 text-xs font-bold text-slate-400">
+                    <DollarSign size={14}/> {project.budget || 'N/A'}
+                </div>
+                <div className="flex items-center gap-1.5 text-xs font-bold text-slate-400">
+                    <Calendar size={14}/> {project.timeline || 'N/A'}
+                </div>
+            </div>
+
+            <button 
+                onClick={onMatch}
+                className="w-full cursor-pointer bg-slate-900 text-white font-bold py-4 rounded-2xl hover:bg-blue-600 transition-all flex items-center justify-center gap-2 shadow-lg shadow-slate-100"
+            >
+                Contextual Match <Sparkles size={18}/>
+            </button>
+        </div>
+    );
+}
+
 function CandidateDetailModal({ candidateId, isOpen, onClose }) {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -278,84 +456,50 @@ function CandidateDetailModal({ candidateId, isOpen, onClose }) {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[100] flex justify-end bg-slate-900/60 backdrop-blur-sm transition-all duration-300">
+    <div className="fixed inset-0 z-[120] flex justify-end bg-slate-900/60 backdrop-blur-sm transition-all duration-300">
       <div className="w-full max-w-2xl bg-white h-full shadow-2xl overflow-y-auto animate-in slide-in-from-right duration-500">
-        
-        <header className="sticky top-0 bg-white/90 backdrop-blur-md p-6 border-b border-slate-100 flex flex-col sm:flex-row gap-4 justify-between items-center z-20">
-          <button onClick={onClose} className="p-2 hover:bg-slate-100 rounded-full self-start sm:self-auto"><X size={24} className="text-slate-500" /></button>
-          <button className="w-full sm:w-auto px-8 py-3 bg-blue-600 text-white font-bold rounded-xl shadow-lg shadow-blue-200">Shortlist Talent</button>
+        <header className="sticky top-0 bg-white/90 backdrop-blur-md p-6 border-b border-slate-100 flex justify-between items-center z-20">
+          <button onClick={onClose} className="p-2 hover:bg-slate-100 rounded-full transition-colors"><X size={24} className="text-slate-500" /></button>
+          <button className="px-8 py-3 bg-blue-600 text-white font-bold rounded-xl shadow-lg shadow-blue-200 hover:bg-blue-700 transition-all">Shortlist Talent</button>
         </header>
 
         {loading ? (
           <div className="p-20 flex justify-center"><Loader2 className="animate-spin text-blue-600" size={40} /></div>
         ) : (
-          <div className="p-6 md:p-12 space-y-12 text-slate-900">
+          <div className="p-8 md:p-12 space-y-12 text-slate-900">
             <section>
               <div className="w-24 h-24 bg-blue-50 text-blue-600 rounded-[2rem] flex items-center justify-center text-4xl font-black mb-8 shadow-inner">{data?.fullName?.charAt(0)}</div>
-              <h2 className="text-4xl md:text-5xl font-black tracking-tighter">{data?.fullName}</h2>
-              <p className="text-xl md:text-2xl font-bold text-blue-600 mt-2">{data?.title}</p>
-              <div className="flex flex-wrap items-center gap-4 md:gap-6 mt-6 text-slate-400 font-bold text-sm tracking-wide">
+              <h2 className="text-4xl font-black tracking-tighter">{data?.fullName}</h2>
+              <p className="text-xl font-bold text-blue-600 mt-2">{data?.title}</p>
+              <div className="flex flex-wrap items-center gap-6 mt-6 text-slate-400 font-bold text-sm tracking-wide">
                 <span className="flex items-center gap-2"><MapPin size={18}/> {data?.city}</span>
                 <span className="flex items-center gap-2"><Briefcase size={18}/> {data?.experience} Exp.</span>
               </div>
             </section>
 
-            <section className="bg-slate-50 p-6 md:p-10 rounded-[2.5rem] border border-slate-100">
-              <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-4 text-center sm:text-left">Professional Bio</h3>
-              <p className="text-slate-800 leading-relaxed font-medium text-lg md:text-xl italic">"{data?.bio}"</p>
+            <section className="bg-slate-50 p-6 rounded-[2.5rem] border border-slate-100">
+              <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-4">Professional Bio</h3>
+              <p className="text-slate-800 leading-relaxed font-medium text-lg italic">"{data?.bio}"</p>
             </section>
 
             <section>
-              <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-6 text-center md:text-left">Tech Stack</h3>
-              <div className="flex flex-wrap gap-3 justify-center md:justify-start">
+              <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-6">Tech Stack</h3>
+              <div className="flex flex-wrap gap-3">
                 {data?.skills?.map(skill => (
-                  <span key={skill} className="px-4 py-2 md:px-5 md:py-2.5 bg-white border-2 border-slate-100 rounded-2xl text-xs md:text-sm font-bold text-slate-800 shadow-sm hover:border-blue-200 transition-colors uppercase tracking-widest">{skill}</span>
+                  <span key={skill} className="px-4 py-2 bg-white border-2 border-slate-100 rounded-2xl text-xs font-bold text-slate-800 uppercase tracking-widest">{skill}</span>
                 ))}
               </div>
             </section>
 
-            <section className="space-y-8">
-              <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-2 text-center sm:text-left">Portfolio Proof</h3>
-              {data?.projects?.map((proj, i) => (
-                <div key={i} className="p-6 md:p-8 rounded-[2rem] border-2 border-slate-50 bg-white hover:border-blue-50 transition-all space-y-4 shadow-sm">
-                  <h4 className="text-xl md:text-2xl font-bold tracking-tight">{proj.name}</h4>
-                  <p className="text-slate-500 font-medium text-base md:text-lg leading-relaxed">{proj.description}</p>
-                  <div className="flex flex-wrap gap-2 pt-2">
-                    {proj.techStack?.map(t => (
-                      <span key={t} className="text-[10px] font-black uppercase tracking-tighter text-blue-600 bg-blue-50/50 px-3 py-1 rounded-lg border border-blue-100/20">{t}</span>
-                    ))}
-                  </div>
-                </div>
-              ))}
-            </section>
-
-            <footer className="pt-12 border-t border-slate-100 grid grid-cols-1 sm:grid-cols-2 gap-6 pb-12">
-              <Link href={data?.github || '#'} target="_blank" className="flex items-center justify-center gap-3 py-4 md:py-5 bg-slate-900 text-white rounded-3xl font-bold hover:bg-slate-800 transition-all shadow-xl shadow-slate-200"><Github size={20} /> GitHub</Link>
-              <Link href={data?.linkedin || '#'} target="_blank" className="flex items-center justify-center gap-3 py-4 md:py-5 border-2 border-slate-100 rounded-3xl font-bold hover:bg-slate-50 transition-all text-slate-900"><Linkedin size={20} /> LinkedIn</Link>
+            <footer className="pt-12 border-t border-slate-100 grid grid-cols-2 gap-6 pb-12">
+              <Link href={data?.github || '#'} target="_blank" className="flex items-center justify-center gap-3 py-4 bg-slate-900 text-white rounded-3xl font-bold hover:bg-slate-800 transition-all shadow-xl shadow-slate-200"><Github size={20} /> GitHub</Link>
+              <Link href={data?.linkedin || '#'} target="_blank" className="flex items-center justify-center gap-3 py-4 border-2 border-slate-100 rounded-3xl font-bold hover:bg-slate-50 transition-all text-slate-900"><Linkedin size={20} /> LinkedIn</Link>
             </footer>
           </div>
         )}
       </div>
     </div>
   );
-}
-
-/* --- HELPER SUB-COMPONENTS --- */
-function NavItem({ icon, label }) {
-  return (
-    <button className="w-full flex items-center space-x-3 px-4 py-3 rounded-xl transition-all text-sm font-semibold hover:bg-slate-800 text-slate-400">
-      {icon} <span>{label}</span>
-    </button>
-  );
-}
-
-function MobileNavItem({ icon: Icon, label, active = false, onClick }) {
-    return (
-      <div onClick={onClick} className={`flex items-center space-x-4 p-5 rounded-2xl cursor-pointer transition-all ${active ? 'bg-blue-500 text-white shadow-lg shadow-blue-500/20' : 'bg-slate-800 text-slate-400'}`}>
-        <Icon size={24} />
-        <span className="text-lg font-bold">{label}</span>
-      </div>
-    );
 }
 
 function StatCard({ label, value, sub, icon }) {

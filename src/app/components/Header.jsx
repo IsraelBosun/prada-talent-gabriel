@@ -88,9 +88,9 @@ export default function Header() {
 
           {/* Navigation - Desktop */}
           <nav className="hidden md:flex items-center space-x-8">
-            <button onClick={() => scrollToSection('home')} className="text-gray-500 hover:text-blue-600 text-sm font-semibold transition-colors">Home</button>
-            <button onClick={() => scrollToSection('our-solution')} className="text-gray-500 hover:text-blue-600 text-sm font-semibold transition-colors">Solution</button>
-            <button onClick={() => scrollToSection('about')} className="text-gray-500 hover:text-blue-600 text-sm font-semibold transition-colors">About</button>
+            <button onClick={() => scrollToSection('home')} className="text-gray-500 cursor-pointer hover:text-blue-600 text-sm font-semibold transition-colors">Home</button>
+            <button onClick={() => scrollToSection('our-solution')} className="text-gray-500 cursor-pointer hover:text-blue-600 text-sm font-semibold transition-colors">Solution</button>
+            <button onClick={() => scrollToSection('about')} className="text-gray-500 cursor-pointer hover:text-blue-600 text-sm font-semibold transition-colors">About</button>
           </nav>
 
           {/* Dynamic Auth Section - Desktop */}
@@ -102,7 +102,7 @@ export default function Header() {
                 </Link>
                 <button 
                   onClick={handleLogout}
-                  className="rounded-xl bg-gray-900 px-5 py-2.5 text-sm font-bold text-white shadow-md hover:bg-gray-800 transition-all active:scale-95"
+                  className="cursor-pointer rounded-xl bg-gray-900 px-5 py-2.5 text-sm font-bold text-white shadow-md hover:bg-gray-800 transition-all active:scale-95"
                 >
                   Sign out
                 </button>

@@ -107,10 +107,10 @@ export default function CandidateDashboard() {
 
       {/* --- DESKTOP SIDEBAR --- */}
       <aside className="w-64 bg-white border-r border-gray-100 hidden lg:flex flex-col p-6 sticky top-0 h-screen">
-        <div className="flex items-center gap-3 mb-10 px-4">
+        {/* <div className="flex items-center gap-3 mb-10 px-4">
           <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center text-white font-black text-xl shadow-lg shadow-blue-100">P</div>
           <span className="font-bold text-gray-900 tracking-tight text-xl">Panda</span>
-        </div>
+        </div> */}
         <nav className="space-y-1 flex-1">
           <NavItem icon={LayoutDashboard} label="Dashboard" active />
           <NavItem icon={Briefcase} label="My Applications" />
