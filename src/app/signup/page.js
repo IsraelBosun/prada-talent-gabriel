@@ -173,7 +173,6 @@
 
 
 
-
 'use client';
 import { useState } from 'react';
 import { useAuth } from '@/context/AuthProvider';
@@ -204,8 +203,8 @@ export default function Signup() {
   const handleGoogleSignup = async () => {
     setLoading(true);
     try {
-      // Pass the selected role so the AuthProvider can initialize the Firestore doc
-      await signInWithGoogle(role);
+      // FIX: Explicitly pass 'true' to signal this is a signup attempt
+      await signInWithGoogle(role, true);
       toast.success("Welcome to the pride! 🐼");
     } catch (error) {
       toast.error(error.message);
@@ -218,7 +217,6 @@ export default function Signup() {
     <div className="min-h-screen bg-white flex flex-col md:flex-row font-sans">
       {/* Left Side: Branding */}
         <div className="hidden md:flex md:w-1/2 bg-blue-600 p-16 flex-col justify-center text-white relative overflow-hidden">
-          {/* Abstract Background Decoration */}
           <div className="absolute top-0 right-0 -mr-20 -mt-20 w-64 h-64 bg-blue-500 rounded-full opacity-20 blur-3xl"></div>
           <div className="absolute bottom-0 left-0 -ml-20 -mb-20 w-80 h-80 bg-blue-400 rounded-full opacity-20 blur-3xl"></div>
           
@@ -240,7 +238,7 @@ export default function Signup() {
             <p className="text-gray-500 font-medium">Step 1: Choose your path</p>
           </div>
 
-          {/* 1. ROLE SELECTION (Placed at top for both Google & Email users) */}
+          {/* Role Selection */}
           <div className="grid grid-cols-2 gap-4 mb-8">
             <button
               type="button"
@@ -275,7 +273,7 @@ export default function Signup() {
             </button>
           </div>
 
-          {/* 2. GOOGLE SSO */}
+          {/* Google SSO */}
           <div className="space-y-3 mb-8">
             <button 
               type="button"
@@ -293,7 +291,7 @@ export default function Signup() {
             </div>
           </div>
 
-          {/* 3. EMAIL FORM */}
+          {/* Email Form */}
           <form onSubmit={handleSignup} className="space-y-5">
             <div className="space-y-4">
               <div className="group">
