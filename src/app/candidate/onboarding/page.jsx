@@ -666,7 +666,7 @@ export default function CandidateOnboarding() {
                           value={proj.description} onChange={(e) => updateProject(proj.id, 'description', e.target.value)} />
                       </div>
 
-                      {/* <div className="space-y-2">
+                      <div className="space-y-2">
                         <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest ml-1">Project Stack</label>
                         <div className="flex flex-wrap gap-2 p-3 bg-gray-50 rounded-2xl border border-gray-100 min-h-[58px]">
                           {proj.techStack.map(t => (
@@ -688,62 +688,7 @@ export default function CandidateOnboarding() {
                             }} 
                           />
                         </div>
-                      </div> */}
-
-
-                                <div className="space-y-2">
-                                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest ml-1">
-                                  Project Stack
-                                </label>
-                                <div className="flex flex-wrap gap-2 p-3 bg-gray-50 rounded-2xl border border-gray-100 min-h-[58px] focus-within:bg-white focus-within:border-blue-600 transition-all">
-                                  {proj.techStack.map((t) => (
-                                    <span
-                                      key={t}
-                                      className="bg-white px-3 py-1.5 rounded-lg border border-gray-200 text-[10px] font-bold text-blue-600 uppercase flex items-center shadow-sm"
-                                    >
-                                      {t}
-                                      <X
-                                        size={10}
-                                        className="ml-1.5 cursor-pointer hover:text-red-500"
-                                        onClick={() => {
-                                          setProjects(
-                                            projects.map((p) =>
-                                              p.id === proj.id
-                                                ? { ...p, techStack: p.techStack.filter((st) => st !== t) }
-                                                : p
-                                            )
-                                          );
-                                        }}
-                                      />
-                                    </span>
-                                  ))}
-                                  <input
-                                    type="text"
-                                    enterKeyHint="done" // Changes the mobile keyboard button text to "Done"
-                                    placeholder="+ Add Tech"
-                                    className="text-xs font-bold text-gray-700 outline-none bg-transparent px-2 w-28 flex-1 min-w-[100px]"
-                                    onKeyDown={(e) => {
-                                      if (e.key === 'Enter') {
-                                        e.preventDefault(); // Stop form submission
-                                        e.stopPropagation(); // Stop event bubbling
-                                        const val = e.target.value.trim();
-                                        if (val) {
-                                          addProjectStack(proj.id, val);
-                                          e.target.value = ''; // Clear input
-                                        }
-                                      }
-                                    }}
-                                    // This ensures that if the user clicks "Done" and focus leaves the input, the tag is saved
-                                    onBlur={(e) => {
-                                      const val = e.target.value.trim();
-                                      if (val) {
-                                        addProjectStack(proj.id, val);
-                                        e.target.value = '';
-                                      }
-                                    }}
-                                  />
-                                </div>
-                              </div>
+                      </div>
                       
                       <div className="space-y-2">
                         <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest ml-1">Live Link / Repository (Optional)</label>
